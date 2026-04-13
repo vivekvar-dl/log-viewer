@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# log-viewer - Real-time log viewer with filtering
+set -euo pipefail
+
+VERSION="1.0.0"
+
+show_help() {
+    cat << EOF
+log-viewer v${VERSION}
+
+Real-time log viewer with filtering and highlighting.
+
+Usage: log-viewer [FILES...] [OPTIONS]
+
+Options:
+    -f, --filter REGEX  Filter lines matching regex
+    -e, --exclude REGEX Exclude lines matching regex
+    -l, --level LEVEL   Filter by level (error|warn|info|debug)
+    -n, --lines N       Show last N lines
+    -c, --color         Enable syntax highlighting
+    -h, --help          Show this help
+
+Examples:
+    log-viewer app.log
+    log-viewer app.log --filter "ERROR"
+    log-viewer *.log --level error
+    log-viewer app.log --exclude "health-check"
+
+EOF
+}
+
+main() {
+    local files=()
+    local filter=""
+    local exclude=""
+    local level=""
+    local lines=10
+    local color=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -f|--filter) filter="$2"; shift 2 ;;
+            -e|--exclude) exclude="$2"; shift 2 ;;
+            -l|--level) level="$2"; shift 2 ;;
+            -n|--lines) lines="$2"; shift 2 ;;
+            -c|--color) color=true; shift ;;
+            -h|--help) show_help; exit 0 ;;
+            -*) echo "Unknown option: $1"; exit 1 ;;
+            *) files+=("$1"); shift ;;
+        esac
+    done
+    
+    [[ ${#files[@]} -eq 0 ]] && { echo "Error: No log files specified"; exit 1; }
+    
+    local cmd="tail -f -n $lines ${files[*]}"
+    [[ -n "$filter" ]] && cmd+=" | grep --line-buffered '$filter'"
+    [[ -n "$exclude" ]] && cmd+=" | grep -v --line-buffered '$exclude'"
+    [[ -n "$level" ]] && cmd+=" | grep --line-buffered -i '$level'"
+    
+    eval "$cmd"
+}
+
+main "$@"
